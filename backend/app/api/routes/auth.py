@@ -31,13 +31,22 @@ def _set_session_cookie(response: Response, token: str) -> None:
         max_age=settings.session_ttl_days * 24 * 60 * 60,
         httponly=True,
         secure=settings.is_production,
-        samesite="lax",
+        samesite=settings.session_cookie_samesite,
         path="/",
     )
 
 
 def _clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(key=settings.session_cookie_name, path="/")
+    # Attributes must match what the cookie was originally set with --
+    # browsers are strict about SameSite=None requiring Secure, so an
+    # unmatched default (secure=False, samesite="lax") can fail to clear
+    # a production ("none"/Secure) cookie correctly.
+    response.delete_cookie(
+        key=settings.session_cookie_name,
+        path="/",
+        secure=settings.is_production,
+        samesite=settings.session_cookie_samesite,
+    )
 
 
 @router.post("/auth/register", response_model=UserResponse, status_code=201, summary="Register a local account")

@@ -29,13 +29,47 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
+_DEFAULT_CORS_ORIGINS = ("http://localhost:5173", "http://127.0.0.1:5173")
+
+
+def _parse_cors_origins(raw: str | None) -> tuple[str, ...]:
+    """The existing local-dev origins are always kept (so `npm run dev`
+    keeps working unmodified); `CORS_ALLOWED_ORIGINS` (comma-separated)
+    adds any additional origin a deployment needs -- e.g. the production
+    Vercel frontend origin -- without hardcoding a deployment-specific
+    hostname here. Order-preserving, de-duplicated, never a wildcard."""
+    extra = [o.strip() for o in (raw or "").split(",") if o.strip()]
+    origins: list[str] = []
+    for origin in (*_DEFAULT_CORS_ORIGINS, *extra):
+        if origin not in origins:
+            origins.append(origin)
+    return tuple(origins)
+
+
+def _normalize_database_url(raw_url: str) -> str:
+    """Managed Postgres providers (Render, Heroku, etc.) commonly hand out
+    a bare `postgres://`/`postgresql://` connection string. SQLAlchemy's
+    default DBAPI for that scheme is `psycopg2`, which this project does
+    not depend on -- only `psycopg` (v3, see requirements.txt) is
+    installed. Rewriting to the explicit `postgresql+psycopg://` driver
+    scheme is a connection-string normalization only; it changes no
+    schema, query, or application behavior, and is a no-op for sqlite or
+    an already-explicit driver scheme (e.g. a local dev URL that already
+    says `postgresql+psycopg://`)."""
+    if raw_url.startswith("postgres://"):
+        return "postgresql+psycopg://" + raw_url[len("postgres://") :]
+    if raw_url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + raw_url[len("postgresql://") :]
+    return raw_url
+
+
 class Settings:
     # SQLAlchemy connection string, e.g.
     # postgresql+psycopg://tradelens:password@localhost:5432/tradelens
     # Falls back to a local SQLite file so the app/tests can still boot
     # without a configured Postgres instance; production deployments MUST
     # set DATABASE_URL explicitly.
-    database_url: str = os.environ.get("DATABASE_URL", "sqlite:///./tradelens_dev.db")
+    database_url: str = _normalize_database_url(os.environ.get("DATABASE_URL", "sqlite:///./tradelens_dev.db"))
 
     # Set ENVIRONMENT=production to enable the `Secure` cookie flag (requires
     # HTTPS). Local development over plain http intentionally leaves it off.
@@ -43,6 +77,13 @@ class Settings:
 
     session_cookie_name: str = os.environ.get("SESSION_COOKIE_NAME", "tradelens_session")
     session_ttl_days: int = int(os.environ.get("SESSION_TTL_DAYS", "14"))
+
+    # Additional CORS origins beyond the always-kept local-dev ones (see
+    # _parse_cors_origins above) -- e.g. CORS_ALLOWED_ORIGINS=
+    # https://your-frontend.vercel.app for a cross-origin production
+    # deployment. Comma-separated; never a wildcard (allow_credentials=True
+    # forbids combining CORS with "*", see app.main).
+    cors_allowed_origins: tuple[str, ...] = _parse_cors_origins(os.environ.get("CORS_ALLOWED_ORIGINS"))
 
     google_client_id: str | None = os.environ.get("GOOGLE_CLIENT_ID")
 
@@ -79,6 +120,17 @@ class Settings:
     @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() == "production"
+
+    @property
+    def session_cookie_samesite(self) -> str:
+        """"lax" works for local dev, where frontend/backend share the
+        "localhost" hostname (see Phase 1G note in app.api.routes.auth).
+        A production deployment where the frontend and backend are on
+        different registrable domains (e.g. a Vercel frontend calling a
+        Render backend) is fully cross-site -- "lax" cookies are not sent
+        on cross-origin fetch/XHR requests at all, only "none" is. "none"
+        requires the `Secure` flag, which `is_production` already gates."""
+        return "none" if self.is_production else "lax"
 
 
 settings = Settings()

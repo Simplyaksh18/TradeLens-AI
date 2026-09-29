@@ -72,6 +72,49 @@ def test_session_rejected_after_logout_even_with_stale_cookie(client):
 
     # Simulate a client that kept using the now-revoked cookie value.
     client.cookies.set("tradelens_session", stale_cookie_value)
+
+
+# ---------------------------------------------------------------------------
+# Deployment: production vs. local-dev session-cookie attributes (see
+# CLAUDE.md deployment-compatibility notes -- a fully cross-site production
+# deployment, e.g. a Vercel frontend calling a Render backend, requires
+# SameSite=None + Secure; local dev (same "localhost" hostname, plain HTTP)
+# requires SameSite=Lax and no Secure).
+# ---------------------------------------------------------------------------
+
+
+def _set_cookie_header(response):
+    header = response.headers.get("set-cookie", "")
+    assert "tradelens_session=" in header
+    return header.lower()
+
+
+def test_local_dev_session_cookie_uses_lax_and_no_secure(client):
+    with patch("app.core.config.settings.environment", "development"):
+        response = _register(client, email="dev-cookie@example.com")
+    header = _set_cookie_header(response)
+    assert "samesite=lax" in header
+    assert "secure" not in header
+    assert "httponly" in header
+
+
+def test_production_session_cookie_uses_samesite_none_and_secure(client):
+    with patch("app.core.config.settings.environment", "production"):
+        response = _register(client, email="prod-cookie@example.com")
+    header = _set_cookie_header(response)
+    assert "samesite=none" in header
+    assert "secure" in header
+    assert "httponly" in header
+
+
+def test_production_logout_clears_cookie_with_matching_attributes(client):
+    with patch("app.core.config.settings.environment", "production"):
+        _register(client, email="prod-logout@example.com")
+        logout_response = client.post("/api/v1/auth/logout")
+    header = logout_response.headers.get("set-cookie", "").lower()
+    assert "tradelens_session=" in header
+    assert "samesite=none" in header
+    assert "secure" in header
     response = client.get("/api/v1/auth/me")
     assert response.status_code == 401
 

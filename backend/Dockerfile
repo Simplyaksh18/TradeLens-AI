@@ -33,12 +33,18 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=3)" || exit 1
+    CMD python -c "import os,urllib.request; urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\",\"8000\")}/api/v1/health', timeout=3)" || exit 1
 
 # Entrypoint applies Alembic migrations (a container starts from a fresh,
 # unmigrated database every first run, unlike native dev where `alembic
 # upgrade head` is a one-time manual step) before exec-ing the CMD below.
 # No --reload: this is the production-style container command. Native
 # development keeps using `uvicorn app.main:app --reload` directly.
+#
+# Shell-form CMD so `${PORT:-8000}` is resolved at container start against
+# whatever the runtime environment provides — Render (and other PaaS
+# platforms) assign a dynamic PORT and require the process to bind to it;
+# docker-compose/local `docker run` don't set PORT, so this still defaults
+# to 8000 exactly as before.
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

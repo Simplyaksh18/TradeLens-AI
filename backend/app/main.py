@@ -29,6 +29,7 @@ from app.api.routes import (
     research,
     strategies,
 )
+from app.core.config import settings
 
 app = FastAPI(
     title="TradeLens API",
@@ -38,16 +39,18 @@ app = FastAPI(
 
 # Phase 1G note: authentication now uses an HttpOnly session cookie, so
 # CORS must allow credentials — and per the CORS spec, allow_credentials=True
-# can NEVER be combined with a wildcard origin. Only explicit dev origins are
-# allowed. For the session cookie to actually be sent cross-port in the
-# browser, frontend and backend must share the same HOSTNAME in dev (both
-# "localhost") — "localhost" and "127.0.0.1" are different hosts for
-# same-site cookie purposes even though both are loopback, so the
-# 127.0.0.1 origin below is CORS-allowed but will NOT receive a working
-# session cookie. See CLAUDE.md Phase 1G for the full review.
+# can NEVER be combined with a wildcard origin. Only explicit origins are
+# allowed: the local-dev origins below plus any deployment-specific origin
+# from CORS_ALLOWED_ORIGINS (see app.core.config._parse_cors_origins), never
+# "*". For the session cookie to actually be sent cross-port in local dev,
+# frontend and backend must share the same HOSTNAME (both "localhost") —
+# "localhost" and "127.0.0.1" are different hosts for same-site cookie
+# purposes even though both are loopback, so the 127.0.0.1 origin below is
+# CORS-allowed but will NOT receive a working session cookie. See CLAUDE.md
+# Phase 1G for the full review.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=list(settings.cors_allowed_origins),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["Content-Type", "Accept"],
