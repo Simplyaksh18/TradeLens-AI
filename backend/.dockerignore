@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.git
+.env
+tradelens_dev.db
+alembic_test.db
+tests/
+manual_verify_phase1d.py
+.env.example

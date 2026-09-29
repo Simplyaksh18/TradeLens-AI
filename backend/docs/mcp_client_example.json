@@ -1,0 +1,13 @@
+{
+  "_comment": "Phase 5D example: how a local MCP-capable client could launch the TradeLens MCP server over STDIO. Replace <python> and <TradeLens backend> with real local paths. No API keys/credentials are required -- MCP tool execution never calls Groq.",
+  "mcpServers": {
+    "tradelens": {
+      "command": "<python>",
+      "args": ["-m", "app.mcp.server"],
+      "cwd": "<TradeLens backend>",
+      "env": {
+        "PYTHONPATH": "<TradeLens backend>"
+      }
+    }
+  }
+}

@@ -1,0 +1,128 @@
+@import 'tailwindcss';
+
+/*
+  TradeLens design tokens.
+  Theme is controlled at runtime via `data-theme="light" | "dark"` on <html>
+  (see src/theme/ThemeProvider.tsx) — "system" preference is resolved to one
+  of these two before being written to the attribute, so every rule below
+  only ever has to handle two concrete themes.
+*/
+
+:root,
+:root[data-theme='light'] {
+  --surface-0: #f7f7f8;
+  --surface-1: #ffffff;
+  --surface-2: #f0f1f3;
+  --surface-raised: #ffffff;
+  --border: #dfe1e6;
+  --border-strong: #c7cad1;
+
+  --text-primary: #14161a;
+  --text-secondary: #52565f;
+  --text-tertiary: #868b96;
+
+  --accent: #2953d6;
+  --accent-strong: #1c3fa8;
+  --accent-soft: #e6ecfb;
+
+  --positive: #157a4a;
+  --positive-soft: #e2f4ea;
+  --negative: #b3261e;
+  --negative-soft: #fbe6e4;
+  --warning: #8a5a00;
+  --warning-soft: #fbf0d9;
+  --neutral-chip: #eef0f3;
+
+  --chart-grid: #e7e9ed;
+  --chart-up: #157a4a;
+  --chart-down: #b3261e;
+  --chart-sma20: #2953d6;
+  --chart-sma50: #b8892b;
+  --chart-volume: #b7bcc6;
+
+  --shadow-1: 0 1px 2px rgba(20, 22, 26, 0.06);
+  --shadow-2: 0 4px 16px rgba(20, 22, 26, 0.08);
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --surface-0: #0d0e12;
+  --surface-1: #14161b;
+  --surface-2: #1b1e25;
+  --surface-raised: #1c1f26;
+  --border: #2a2d36;
+  --border-strong: #3a3e4a;
+
+  --text-primary: #edeef1;
+  --text-secondary: #a4a9b4;
+  --text-tertiary: #6c7180;
+
+  --accent: #6d8dff;
+  --accent-strong: #93aaff;
+  --accent-soft: #1b2544;
+
+  --positive: #3fbf82;
+  --positive-soft: #113026;
+  --negative: #e0665e;
+  --negative-soft: #341615;
+  --warning: #d6a94a;
+  --warning-soft: #332708;
+  --neutral-chip: #23262f;
+
+  --chart-grid: #232630;
+  --chart-up: #3fbf82;
+  --chart-down: #e0665e;
+  --chart-sma20: #6d8dff;
+  --chart-sma50: #d6a94a;
+  --chart-volume: #3a3e4a;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-mono-tabular {
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Subtle entrance for the auth form panel. Restrained on purpose (this is
+   a trust-first finance research product, not a marketing page) — a single
+   short fade+lift, gated by prefers-reduced-motion via Tailwind's
+   `motion-safe:` variant at the call site. */
+@keyframes auth-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

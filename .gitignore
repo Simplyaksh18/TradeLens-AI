@@ -1,0 +1,47 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Generated instrument-master and market-data cache files
+data/instrument_master/*
+!data/instrument_master/.gitkeep
+data/market_data_cache/*
+!data/market_data_cache/.gitkeep
+
+# Post-Phase-5F hardening — downloaded semantic embedding model files
+# (fastembed/ONNX, ~130MB); re-downloaded automatically if missing, never
+# committed.
+data/embedding_model_cache/*
+!data/embedding_model_cache/.gitkeep
+
+# Google OAuth client credentials (Phase 1G) — must never be committed;
+# see CLAUDE.md post-5F hardening security note.
+google_credentials.json
+frontend/google_credentials.json
+
+# Ad-hoc experiment scratch output
+experiments/*.csv
+
+# Phase 1G — real secrets (DATABASE_URL, GOOGLE_CLIENT_ID, etc.); only the
+# .env.example templates are tracked.
+backend/.env
+frontend/.env
+frontend/.env.local
+backend/alembic_test.db
+
+# Local Alembic-generated dev SQLite fallback (see app/core/config.py's
+# DATABASE_URL default) — never the real Postgres data.
+backend/tradelens_dev.db
+
+# Phase 1H — root .env used for `docker compose` variable substitution
+# (GOOGLE_CLIENT_ID, port/DATABASE_URL overrides); only .env.example is
+# tracked. Also ignore the SQLite file docker compose writes into the
+# persistent data volume.
+/.env
+data/tradelens_dev.db
+
+# Local environment files
+frontend/.env.development
+frontend/.env.local
+frontend/.env.production

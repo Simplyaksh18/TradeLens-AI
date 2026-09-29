@@ -1,0 +1,37 @@
+yfinance==1.7.0
+pandas==3.0.6
+numpy==2.5.3
+requests==2.34.2
+pyarrow==25.0.1
+fastapi==0.141.1
+uvicorn==0.54.0
+httpx==0.28.1
+pytest==9.1.1
+pytest-mock==3.15.1
+pytest-cov==7.1.0
+
+# Pinned explicitly (not just a transitive pull) because it is the exact
+# version that previously conflicted with mcp's own >=2.11.0 requirement
+# (see CLAUDE.md Phase 5F / post-5F hardening) -- proven compatible with
+# fastapi/mcp/sqlalchemy together in this project's own .venv.
+pydantic==2.13.5
+
+# Phase 1G — auth & persistence
+sqlalchemy==2.1.1
+alembic==1.20.0
+psycopg[binary]==3.3.6
+argon2-cffi==25.1.0
+google-auth==2.58.1
+email-validator==2.3.0
+python-dotenv==1.2.3
+
+# Phase 5B — grounded research explanation (LLM provider, server-side only)
+groq==1.7.0
+
+# Phase 5D — MCP research server (official Python SDK, STDIO transport)
+mcp==1.27.0
+
+# Post-Phase-5F hardening — real semantic embeddings for Phase 5A
+# retrieval (ONNX Runtime via fastembed, no PyTorch; see
+# app/knowledge/embedding.py SemanticEmbeddingProvider)
+fastembed==0.8.1

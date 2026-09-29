@@ -1,0 +1,55 @@
+# TradeLens Docker Compose — two application containers (backend, frontend).
+#
+# Usage:
+#   docker compose up --build
+#
+# Optional root .env (gitignored; see .env.example) supplies GOOGLE_CLIENT_ID
+# and any DATABASE_URL/host-port overrides via ${VAR} substitution below.
+# Nothing here bakes a secret into an image.
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      # No Postgres container in this phase (native dev's Postgres is not
+      # reachable at "localhost" from inside this container). Defaults to
+      # a SQLite file on the persistent data volume, matching the existing
+      # sqlite fallback already built into app/core/config.py. To reuse a
+      # Postgres instance already running natively on the host, override
+      # DATABASE_URL in a root .env using host.docker.internal instead of
+      # localhost, e.g.:
+      #   DATABASE_URL=postgresql+psycopg://user:pass@host.docker.internal:5432/tradelens
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/tradelens_dev.db}
+      # Stays "development" (no TLS terminates here, so the Secure cookie
+      # flag must stay off — see app/core/config.py and CLAUDE.md Phase 1G).
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-tradelens_session}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-14}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Server-side only: used by the Phase 5B/5C research provider.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+    volumes:
+      # Same folder native development already reads/writes
+      # (data/instrument_master, data/market_data_cache) plus the SQLite
+      # dev database — survives `docker compose down`/`up` and is shared
+      # with native runs.
+      - ./data:/app/data
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Keeps the browser-visible origin identical to native `npm run dev`
+        # (localhost:5173) so no Google OAuth "Authorized JavaScript
+        # origins" change is required. Change only if FRONTEND_PORT below
+        # is also changed.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5173}
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
