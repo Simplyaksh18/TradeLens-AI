@@ -14,7 +14,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.errors import register_exception_handlers
+from app.api.errors import UnhandledExceptionSafetyMiddleware, register_exception_handlers
 from app.api.routes import (
     analytics,
     audits,
@@ -36,6 +36,13 @@ app = FastAPI(
     version="0.1.0",
     description="Explainable algorithmic-trading strategy research and auditing API (research/education only).",
 )
+
+# Registered BEFORE CORSMiddleware below -- Starlette's add_middleware
+# prepends, so the middleware added LAST ends up OUTERMOST. This ordering
+# places UnhandledExceptionSafetyMiddleware just INSIDE CORSMiddleware (see
+# its own docstring in app.api.errors for why that positioning matters),
+# not outside it.
+app.add_middleware(UnhandledExceptionSafetyMiddleware)
 
 # Phase 1G note: authentication now uses an HttpOnly session cookie, so
 # CORS must allow credentials — and per the CORS spec, allow_credentials=True

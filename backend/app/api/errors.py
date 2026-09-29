@@ -14,6 +14,7 @@ from __future__ import annotations
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.exceptions import (
     AgentInputInvalidError,
@@ -23,6 +24,7 @@ from app.core.exceptions import (
     EmptyProviderResponseError,
     GoogleAccountCollisionError,
     IndicatorInputInvalidError,
+    InstrumentCatalogUnavailableError,
     InstrumentNotFoundError,
     InvalidCredentialsError,
     InvalidGoogleCredentialError,
@@ -70,6 +72,11 @@ class RequestContractError(Exception):
 # than crashing unhandled is the safer default.
 _DOMAIN_ERROR_MAP: dict[type[Exception], tuple[int, str]] = {
     InstrumentNotFoundError: (404, "INSTRUMENT_NOT_FOUND"),
+    # The instrument-master snapshot could not be bootstrapped on a clean
+    # filesystem (see app.instruments.master's clean-deploy bootstrap) --
+    # a transient upstream/network condition, same reasoning as
+    # ProviderUnavailableError below, never an ordinary user mistake.
+    InstrumentCatalogUnavailableError: (503, "INSTRUMENT_CATALOG_UNAVAILABLE"),
     NoDataForPeriodError: (404, "NO_DATA_FOR_PERIOD"),
     RateLimitedError: (503, "PROVIDER_RATE_LIMITED"),
     ProviderUnavailableError: (503, "PROVIDER_UNAVAILABLE"),
@@ -155,6 +162,38 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         return _error_response(422, "REQUEST_VALIDATION_ERROR", "Invalid request parameters.")
+
+
+class UnhandledExceptionSafetyMiddleware(BaseHTTPMiddleware):
+    """Deployment-compatibility backstop (see CLAUDE.md).
+
+    Registering a handler for the bare `Exception`/500 type via
+    `@app.exception_handler` does NOT work for this: Starlette's own
+    `build_middleware_stack` special-cases that key and wires it to
+    `ServerErrorMiddleware`, which sits OUTSIDE (before) `CORSMiddleware` in
+    the stack -- so a response produced that way never passes back through
+    CORSMiddleware and arrives at the browser with no
+    `Access-Control-Allow-Origin` header. The browser then reports the
+    request to the frontend as an opaque, indistinguishable-from-offline
+    network failure (`fetch()` itself rejects) instead of a real, readable
+    5xx response -- this was the actual root cause of the misleading
+    "Could not reach the TradeLens API." message for the production
+    instrument-catalog bug this deployment-compatibility pass fixes.
+
+    This middleware is registered (see app.main) so that it sits BETWEEN
+    CORSMiddleware and the router/ExceptionMiddleware. Any exception that
+    reaches it (i.e. one not already mapped to a domain handler above) is
+    converted to a plain JSONResponse HERE, before it can escape past
+    CORSMiddleware — so the response still gets CORS headers applied on its
+    way back out. Never exposes a traceback/exception class name/internal
+    path, matching every other handler in this file.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            return _error_response(500, "INTERNAL_SERVER_ERROR", "An unexpected server error occurred.")
 
 
 def _make_domain_handler(status_code: int, code: str):

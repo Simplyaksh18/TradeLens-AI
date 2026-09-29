@@ -53,6 +53,31 @@ describe('apiGet', () => {
     await expect(apiGet('/api/v1/health')).rejects.toBeInstanceOf(ApiError)
   })
 
+  it('distinguishes a reached-but-failed 5xx from an unreachable network failure when no JSON body is present', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 502 })))
+
+    await expect(apiGet('/api/v1/health')).rejects.toMatchObject({
+      status: 502,
+      message: expect.stringContaining('reached'),
+    })
+  })
+
+  it('always prefers the backend structured error body over the generic 5xx fallback', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: { code: 'INSTRUMENT_CATALOG_UNAVAILABLE', message: 'Catalogue unavailable.' } }), {
+          status: 503,
+        }),
+      ),
+    )
+
+    await expect(apiGet('/api/v1/instruments')).rejects.toMatchObject({
+      code: 'INSTRUMENT_CATALOG_UNAVAILABLE',
+      message: 'Catalogue unavailable.',
+    })
+  })
+
   it('throws AbortedRequestError when the request is aborted', async () => {
     const abortError = new DOMException('aborted', 'AbortError')
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError))

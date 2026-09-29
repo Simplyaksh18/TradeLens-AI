@@ -249,9 +249,16 @@ def _atomic_write_parquet(df: pd.DataFrame, final_path: Path) -> None:
     os.replace(tmp_path, final_path)
 
 
-def _atomic_write_text(final_path: Path, text: str) -> None:
+def _atomic_write_text(final_path: Path, text: str, encoding: str = "utf-8") -> None:
+    """Reused (not duplicated) by app.instruments.master.InstrumentMaster.refresh
+    for its NSE snapshot write, for the exact same atomic-write reasoning
+    documented above `_atomic_write_parquet`. `encoding` defaults to "utf-8"
+    (this module's own meta-JSON callers are ASCII-safe either way; the CSV
+    snapshot is not, since NSE company names may contain non-ASCII
+    characters -- explicit utf-8 avoids depending on the platform's default
+    text encoding, which is NOT utf-8 on Windows)."""
     tmp_path = final_path.with_name(f"{final_path.name}.tmp-{uuid.uuid4().hex}")
-    tmp_path.write_text(text)
+    tmp_path.write_text(text, encoding=encoding)
     os.replace(tmp_path, final_path)
 
 

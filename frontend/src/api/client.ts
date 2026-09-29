@@ -72,7 +72,19 @@ async function request<T>(
       // response body wasn't JSON; fall through to a generic message
     }
     const code = body?.error?.code ?? 'UNKNOWN_ERROR'
-    const message = body?.error?.message ?? `Request failed with status ${response.status}.`
+    // The backend's own structured error body (see app/api/errors.py) is
+    // always preferred when present -- it already distinguishes the exact
+    // failure (e.g. INSTRUMENT_CATALOG_UNAVAILABLE, SESSION_INVALID). This
+    // fallback only applies when no JSON body was returned at all (e.g. a
+    // platform-level failure upstream of the application, such as a
+    // hosting provider's own 502/504), and exists specifically so a 5xx is
+    // never confused with the NETWORK_ERROR case above ("could not reach
+    // the API at all") -- the API WAS reached here, it just failed.
+    const message =
+      body?.error?.message ??
+      (response.status >= 500
+        ? 'The TradeLens API was reached but failed to process this request. Please try again shortly.'
+        : `Request failed with status ${response.status}.`)
     throw new ApiError(response.status, code, message)
   }
 

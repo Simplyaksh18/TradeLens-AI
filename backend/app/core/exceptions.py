@@ -24,6 +24,22 @@ class InstrumentNotFoundError(MarketDataError):
         super().__init__(f"Instrument not found in local instrument master: {symbol!r}")
 
 
+class InstrumentCatalogUnavailableError(MarketDataError):
+    """The local instrument-master snapshot does not exist yet AND the
+    automatic clean-deploy bootstrap (InstrumentMaster._ensure_loaded --
+    see app/instruments/master.py) could not fetch/persist a fresh one
+    from the NSE source (network failure, malformed response, or a
+    filesystem write failure). Distinct from InstrumentNotFoundError,
+    which means the catalogue loaded fine but a specific symbol isn't in
+    it. The original exception is preserved via `__cause__`; no
+    instrument is ever fabricated in this case."""
+
+    def __init__(self):
+        super().__init__(
+            "The NSE instrument catalogue is not yet available and could not be bootstrapped from its source. Try again shortly."
+        )
+
+
 class NoDataForPeriodError(MarketDataError):
     """A known-valid instrument returned no bars for the requested period.
 
